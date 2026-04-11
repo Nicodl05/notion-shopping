@@ -71,29 +71,41 @@ export default function Home() {
   const hasResult = uiState === "success";
 
   return (
-    <main className="min-h-screen bg-[#F8F7F4] pb-32">
-      <div className="max-w-[800px] mx-auto px-4 md:px-8 pt-10 md:pt-16">
-        <header className="flex items-start justify-between mb-10">
+    <main className="min-h-screen bg-[#F8F7F4] pb-24 md:pb-32">
+      <div className="max-w-[800px] mx-auto px-4 md:px-8 pt-8 md:pt-16">
+        <header className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 mb-8 md:mb-12">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <span className="text-3xl">🛒</span>
-              <h1 className="text-3xl md:text-4xl font-bold text-[#1A1A1A] tracking-tight">
+              <span className="text-2xl md:text-3xl">🛒</span>
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-[#1A1A1A] tracking-tight">
                 Notion Shopping
               </h1>
             </div>
-            <p className="text-sm text-gray-400 ml-[52px] font-medium">
-              Liste de courses intelligente · Mistral AI
-            </p>
+            <div className="flex items-center gap-2 ml-[36px] md:ml-[52px]">
+              <p className="text-[11px] md:text-sm text-gray-400 font-medium">
+                Propulsé par
+              </p>
+              <div className="flex items-center gap-1 bg-[#F5F5F5] px-2 py-0.5 rounded-md border border-gray-100 scale-90 md:scale-100 origin-left">
+                <svg viewBox="0 0 100 100" className="w-3 h-3 fill-[#FD6F00]">
+                  <path d="M10 20h20v60H10zM40 20h20v60H40zM70 20h20v60H70zM10 20h80v20H10z" />
+                </svg>
+                <span className="text-[9px] md:text-[10px] font-bold text-[#1A1A1A] tracking-wider uppercase">
+                  Mistral AI
+                </span>
+              </div>
+            </div>
           </div>
-          {hasResult && (
-            <button
-              onClick={handleReset}
-              title="Réinitialiser"
-              className="mt-1 p-2 rounded-full text-gray-400 hover:text-[#1A1A1A] hover:bg-gray-200 transition-all"
-            >
-              <RefreshCw size={18} />
-            </button>
-          )}
+          <div className="flex items-center gap-3 self-end xs:self-auto">
+            {hasResult && (
+              <button
+                onClick={handleReset}
+                title="Réinitialiser"
+                className="p-2 rounded-full text-gray-400 hover:text-[#1A1A1A] hover:bg-gray-200 transition-all bg-white/50 border border-gray-100 shadow-sm xs:shadow-none xs:bg-transparent xs:border-none"
+              >
+                <RefreshCw size={18} />
+              </button>
+            )}
+          </div>
         </header>
 
         {(uiState === "idle" || uiState === "error") && (

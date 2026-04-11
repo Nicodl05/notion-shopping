@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const prompt = SHOPPING_LIST_PROMPT.replace("{{PLANNING}}", content);
 
     const response = await mistral.chat.complete({
-      model: "mistral-large-latest",
+      model: "open-mistral-7b",
       messages: [
         {
           role: "user",
@@ -39,6 +39,7 @@ export async function POST(req: Request) {
     });
 
     const text = (response.choices?.[0]?.message?.content as string) || "";
+    console.log("Mistral Raw Output:", text);
 
     // Parser le format "Catégorie | Produit | Quantité | Recettes"
     const lines = text.split("\n").filter((l: string) => l.includes("|"));
