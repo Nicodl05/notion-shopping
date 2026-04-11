@@ -5,7 +5,7 @@ Application web Next.js qui génère une liste de courses à partir du contenu d
 
 ## Stack
 
-- Next.js 14+ avec App Router
+- Next.js 16+ avec App Router
 - TypeScript
 - Tailwind CSS
 - @notionhq/client
