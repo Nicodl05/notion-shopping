@@ -32,10 +32,16 @@ export async function POST(req: Request) {
       model: "open-mistral-7b",
       messages: [
         {
+          role: "system",
+          content:
+            "You are a helpful culinary assistant. Always output in the requested pipe-separated format.",
+        },
+        {
           role: "user",
           content: prompt,
         },
       ],
+      temperature: 0.1, // Lower temperature for more consistent structured output
     });
 
     const text = (response.choices?.[0]?.message?.content as string) || "";

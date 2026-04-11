@@ -144,7 +144,7 @@ export default function ShoppingList({
         </div>
         <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-[#5C8C6A] to-[#86A68D] rounded-full transition-all duration-700 ease-out"
+            className="h-full bg-[#5C8C6A] rounded-full transition-all duration-700 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -347,7 +347,7 @@ export default function ShoppingList({
                     className={`relative p-5 rounded-3xl border-2 transition-all duration-400 cursor-pointer overflow-hidden group ${
                       checked
                         ? "bg-gray-50 border-gray-100 opacity-60"
-                        : "bg-gradient-to-br from-[#FFFDF8] to-[#FFF9F0] border-[#F2EADA] hover:border-[#D4A373] hover:shadow-md active:scale-[0.98]"
+                        : "bg-[#FFFDF8] border-[#F2EADA] hover:border-[#D4A373] hover:shadow-md active:scale-[0.98]"
                     }`}
                   >
                     <div className="relative flex gap-4 z-10">
