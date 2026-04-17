@@ -10,7 +10,8 @@ Ta tâche :
 1. Génère la liste de courses principale à partir des ingrédients explicitement listés.
 2. Ajoute une section "Conseils & Suggestions" à la fin si tu penses à des compléments pertinents pour ces recettes (accompagnements, herbes fraîches non listées, vins, etc.).
    - Pour les VINS : Sois TRÈS PRÉCIS. Ne dis pas juste "Vin blanc". Précise le profil (sec, moelleux, fruité) et suggère 1 ou 2 cépages ou appellations idéales pour le plat (ex: "Chardonnay pour son onctuosité", "Sauvignon Blanc pour la vivacité", etc.).
-
+3. A noter que tu peux avoir plusieurs cases qui peuvent comprendre des utilisaires hygiène, cela peut être par exemple: (papier toilette, sopalin, dentifrice). Il faudra également que tu rajoutes dans la liste de course ce que tu recois comme paramètre directement !
+  - Cela ira dans la colonne utilitaire, comme ce sera expliqué un peu plus tard.
 Règles strictes :
 - Prends UNIQUEMENT les ingrédients explicitement écrits pour la section principale.
 - Si une recette n'a pas d'ingrédients listés, elle est ignorée de la liste principale.
@@ -59,10 +60,12 @@ Règles strictes :
   - Boulangerie & Pâtisserie
   - Surgelés
   - Boissons & Condiments
+  - Utilitaires
   - Suggestions du Chef (UNIQUEMENT pour la section suggestions)
 
   Pour la colonne Recettes :
   - Nom exact de la recette ou "Général"
+  - Si c'est un utilitaire, pas besoin d'indiquer de recette !
 
   Format pour les Suggestions (À LA FIN) :
   Suggestions du Chef | [Produit suggéré] | [Pourquoi ?] | [Recette liée]
