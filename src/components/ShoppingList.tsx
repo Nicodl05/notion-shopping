@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 interface ShoppingItem {
   category: string;
@@ -7,6 +7,8 @@ interface ShoppingItem {
   quantity: string;
   recipes?: string;
   quantityDetail?: string; // New field to store the calculation
+  isCustom?: boolean;
+  customId?: string;
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -30,6 +32,20 @@ const getCategoryIcon = (cat: string) => CATEGORY_ICONS[cat] ?? "🛒";
 
 const isGuessed = (quantity: string) => !quantity || !/\d/.test(quantity);
 
+const ALL_CATEGORIES = [
+  "Fruits & Légumes",
+  "Viandes & Charcuterie",
+  "Poissons & Fruits de mer",
+  "Produits laitiers & Œufs",
+  "Épicerie sèche",
+  "Conserves",
+  "Boulangerie & Pâtisserie",
+  "Surgelés",
+  "Boissons & Condiments",
+  "Utilitaires",
+  "Ajouts personnalisés",
+];
+
 export default function ShoppingList({
   items: rawItems,
 }: {
@@ -42,6 +58,42 @@ export default function ShoppingList({
   const [collapsedCategories, setCollapsedCategories] = useState<
     Record<string, boolean>
   >({});
+
+  const [customItems, setCustomItems] = useState<ShoppingItem[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemQty, setNewItemQty] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("Ajouts personnalisés");
+  const itemNameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showAddForm) {
+      setTimeout(() => itemNameRef.current?.focus(), 50);
+    }
+  }, [showAddForm]);
+
+  const handleAddItem = () => {
+    const name = newItemName.trim();
+    if (!name) return;
+    const id = `custom-${Date.now()}-${Math.random()}`;
+    setCustomItems((prev) => [
+      ...prev,
+      {
+        category: newItemCategory,
+        item: name,
+        quantity: newItemQty.trim(),
+        isCustom: true,
+        customId: id,
+      },
+    ]);
+    setNewItemName("");
+    setNewItemQty("");
+    setShowAddForm(false);
+  };
+
+  const handleRemoveCustomItem = (customId: string) => {
+    setCustomItems((prev) => prev.filter((it) => it.customId !== customId));
+  };
 
   // Group items by Category and Product Name to avoid duplicates if the AI fails to group
   const items = React.useMemo(() => {
@@ -87,8 +139,8 @@ export default function ShoppingList({
       }
       return acc;
     }, [] as ShoppingItem[]);
-    return grouped;
-  }, [rawItems]);
+    return [...grouped, ...customItems];
+  }, [rawItems, customItems]);
 
   const toggleCheck = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -279,6 +331,20 @@ export default function ShoppingList({
                                 {it.quantity}
                               </span>
                             )}
+                            {it.isCustom && it.customId && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCustomItem(it.customId!);
+                                }}
+                                title="Supprimer"
+                                className="shrink-0 ml-1 w-5 h-5 flex items-center justify-center rounded-full text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all self-start mt-1"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                                </svg>
+                              </button>
+                            )}
                           </div>
 
                           {expanded && hasDetails && (
@@ -303,6 +369,70 @@ export default function ShoppingList({
             </div>
           );
         })}
+      </div>
+
+      {/* Add item button and form */}
+      <div className="mt-2">
+        {!showAddForm ? (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#5C8C6A] hover:text-[#5C8C6A] transition-all duration-200 font-semibold text-sm bg-white/50 hover:bg-[#F4FAF6]"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Ajouter un article
+          </button>
+        ) : (
+          <div className="bg-white rounded-2xl border border-[#D1E6D6] shadow-sm p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="text-xs font-bold text-[#5C8C6A] uppercase tracking-wider mb-3">Ajouter un article</p>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={itemNameRef}
+                type="text"
+                placeholder="Nom de l'article *"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddItem(); if (e.key === "Escape") setShowAddForm(false); }}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder-gray-300 focus:outline-none focus:border-[#5C8C6A] transition-colors"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Quantité (optionnel)"
+                  value={newItemQty}
+                  onChange={(e) => setNewItemQty(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAddItem(); if (e.key === "Escape") setShowAddForm(false); }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder-gray-300 focus:outline-none focus:border-[#5C8C6A] transition-colors"
+                />
+                <select
+                  value={newItemCategory}
+                  onChange={(e) => setNewItemCategory(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] focus:outline-none focus:border-[#5C8C6A] transition-colors bg-white"
+                >
+                  {ALL_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleAddItem}
+                  disabled={!newItemName.trim()}
+                  className="flex-1 py-2 rounded-xl bg-[#5C8C6A] text-white text-sm font-bold hover:bg-[#4a7458] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Ajouter
+                </button>
+                <button
+                  onClick={() => { setShowAddForm(false); setNewItemName(""); setNewItemQty(""); }}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {suggestions.length > 0 && (
