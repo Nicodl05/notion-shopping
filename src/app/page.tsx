@@ -3,14 +3,9 @@ import React, { useState, useEffect } from "react";
 import NotionContent from "@/components/NotionContent";
 import ShoppingList from "@/components/ShoppingList";
 import { Loader2, RefreshCw } from "lucide-react";
+import type { ShoppingItem } from "@/types/shopping";
 
 type UIState = "idle" | "loading" | "success" | "error";
-
-interface ShoppingItem {
-  category: string;
-  item: string;
-  quantity: string;
-}
 
 export default function Home() {
   const [notionContent, setNotionContent] = useState<string>("");
@@ -55,8 +50,8 @@ export default function Home() {
         setShoppingItems(data.items);
         setUiState("success");
       }
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Erreur inconnue");
       setUiState("error");
     }
   };

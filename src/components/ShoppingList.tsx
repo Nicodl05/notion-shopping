@@ -1,34 +1,15 @@
 "use client";
-import React, { useState } from "react";
-
-interface ShoppingItem {
-  category: string;
-  item: string;
-  quantity: string;
-  recipes?: string;
-  quantityDetail?: string; // New field to store the calculation
-}
-
-const CATEGORY_ICONS: Record<string, string> = {
-  "Fruits & Légumes": "🥦",
-  "Viandes & Charcuterie": "🥩",
-  "Poissons & Fruits de mer": "🐟",
-  Poissons: "🐟",
-  "Produits laitiers & Œufs": "🧀",
-  "Produits laitiers": "🧀",
-  "Épicerie sèche": "🧂",
-  Conserves: "🫙",
-  "Boulangerie & Pâtisserie": "🥐",
-  Boulangerie: "🥐",
-  Surgelés: "❄️",
-  "Boissons & Condiments": "🧃",
-  Boissons: "🧃",
-  Condiments: "🧃",
-};
-
-const getCategoryIcon = (cat: string) => CATEGORY_ICONS[cat] ?? "🛒";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  ALL_CATEGORIES,
+  DEFAULT_CUSTOM_CATEGORY,
+  SUGGESTIONS_CATEGORY,
+  getCategoryIcon,
+} from "@/lib/categories";
+import type { ShoppingItem } from "@/types/shopping";
 
 const isGuessed = (quantity: string) => !quantity || !/\d/.test(quantity);
+
 
 export default function ShoppingList({
   items: rawItems,
@@ -43,10 +24,54 @@ export default function ShoppingList({
     Record<string, boolean>
   >({});
 
+  const customIdCounterRef = useRef(0);
+
+  const [customItems, setCustomItems] = useState<ShoppingItem[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemQty, setNewItemQty] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState(DEFAULT_CUSTOM_CATEGORY);
+  const itemNameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showAddForm) {
+      setTimeout(() => itemNameRef.current?.focus(), 50);
+    }
+  }, [showAddForm]);
+
+  const handleAddItem = () => {
+    const name = newItemName.trim();
+    if (!name) return;
+    customIdCounterRef.current += 1;
+    const id = `custom-${customIdCounterRef.current}`;
+    setCustomItems((prev) => [
+      ...prev,
+      {
+        category: newItemCategory,
+        item: name,
+        quantity: newItemQty.trim(),
+        isCustom: true,
+        customId: id,
+      },
+    ]);
+    setNewItemName("");
+    setNewItemQty("");
+    setShowAddForm(false);
+  };
+
+  const handleAddItemKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleAddItem();
+    if (e.key === "Escape") setShowAddForm(false);
+  };
+
+  const handleRemoveCustomItem = (customId: string) => {
+    setCustomItems((prev) => prev.filter((it) => it.customId !== customId));
+  };
+
   // Group items by Category and Product Name to avoid duplicates if the AI fails to group
   const items = React.useMemo(() => {
     const grouped = rawItems.reduce((acc, current) => {
-      if (current.category === "Suggestions du Chef") {
+      if (current.category === SUGGESTIONS_CATEGORY) {
         acc.push(current);
         return acc;
       }
@@ -87,8 +112,8 @@ export default function ShoppingList({
       }
       return acc;
     }, [] as ShoppingItem[]);
-    return grouped;
-  }, [rawItems]);
+    return [...grouped, ...customItems];
+  }, [rawItems, customItems]);
 
   const toggleCheck = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,13 +129,13 @@ export default function ShoppingList({
   };
 
   const categories = Array.from(new Set(items.map((it) => it.category)));
-  const mainCategories = categories.filter((c) => c !== "Suggestions du Chef");
+  const mainCategories = categories.filter((c) => c !== SUGGESTIONS_CATEGORY);
   const suggestions = items.filter(
-    (it) => it.category === "Suggestions du Chef",
+    (it) => it.category === SUGGESTIONS_CATEGORY,
   );
 
   const totalCount = items.filter(
-    (it) => it.category !== "Suggestions du Chef",
+    (it) => it.category !== SUGGESTIONS_CATEGORY,
   ).length;
   const checkedCount = Object.entries(checkedItems).filter(
     ([id, checked]) => checked && !id.startsWith("Suggestions du Chef-"),
@@ -118,7 +143,7 @@ export default function ShoppingList({
 
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
   const guessedCount = items.filter(
-    (it) => it.category !== "Suggestions du Chef" && isGuessed(it.quantity),
+    (it) => it.category !== SUGGESTIONS_CATEGORY && isGuessed(it.quantity),
   ).length;
 
   if (items.length === 0) return null;
@@ -198,6 +223,7 @@ export default function ShoppingList({
                       const hasRecipes = it.recipes && it.recipes !== "Général";
                       const hasDetails = hasRecipes || !!it.quantityDetail;
                       const guessed = isGuessed(it.quantity);
+                      const customId = it.customId;
                       return (
                         <div key={id} className="flex flex-col w-full">
                           <div className="flex items-start gap-3 px-4 py-4 hover:bg-gray-50/50 transition-colors group select-none">
@@ -279,6 +305,20 @@ export default function ShoppingList({
                                 {it.quantity}
                               </span>
                             )}
+                            {it.isCustom && customId && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCustomItem(customId);
+                                }}
+                                title="Supprimer"
+                                className="shrink-0 ml-1 w-5 h-5 flex items-center justify-center rounded-full text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all self-start mt-1"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                                </svg>
+                              </button>
+                            )}
                           </div>
 
                           {expanded && hasDetails && (
@@ -305,10 +345,74 @@ export default function ShoppingList({
         })}
       </div>
 
+      {/* Add item button and form */}
+      <div className="mt-2">
+        {!showAddForm ? (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#5C8C6A] hover:text-[#5C8C6A] transition-all duration-200 font-semibold text-sm bg-white/50 hover:bg-[#F4FAF6]"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Ajouter un article
+          </button>
+        ) : (
+          <div className="bg-white rounded-2xl border border-[#D1E6D6] shadow-sm p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="text-xs font-bold text-[#5C8C6A] uppercase tracking-wider mb-3">Ajouter un article</p>
+            <div className="flex flex-col gap-2">
+              <input
+                ref={itemNameRef}
+                type="text"
+                placeholder="Nom de l'article *"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                onKeyDown={handleAddItemKeyDown}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder-gray-300 focus:outline-none focus:border-[#5C8C6A] transition-colors"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Quantité (optionnel)"
+                  value={newItemQty}
+                  onChange={(e) => setNewItemQty(e.target.value)}
+                  onKeyDown={handleAddItemKeyDown}
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder-gray-300 focus:outline-none focus:border-[#5C8C6A] transition-colors"
+                />
+                <select
+                  value={newItemCategory}
+                  onChange={(e) => setNewItemCategory(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] focus:outline-none focus:border-[#5C8C6A] transition-colors bg-white"
+                >
+                  {ALL_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleAddItem}
+                  disabled={!newItemName.trim()}
+                  className="flex-1 py-2 rounded-xl bg-[#5C8C6A] text-white text-sm font-bold hover:bg-[#4a7458] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Ajouter
+                </button>
+                <button
+                  onClick={() => { setShowAddForm(false); setNewItemName(""); setNewItemQty(""); setNewItemCategory(DEFAULT_CUSTOM_CATEGORY); }}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {suggestions.length > 0 && (
         <div className="mt-10 pt-6 border-t border-gray-200/60">
           <div
-            onClick={() => toggleCategory("Suggestions du Chef")}
+            onClick={() => toggleCategory(SUGGESTIONS_CATEGORY)}
             className="flex items-center justify-between mb-4 px-1 cursor-pointer group"
           >
             <div className="flex items-center gap-2">
@@ -324,7 +428,7 @@ export default function ShoppingList({
               height="8"
               viewBox="0 0 10 6"
               fill="none"
-              className={`transition-transform duration-300 ${collapsedCategories["Suggestions du Chef"] ? "-rotate-90" : ""} text-gray-400 group-hover:text-orange-400`}
+              className={`transition-transform duration-300 ${collapsedCategories[SUGGESTIONS_CATEGORY] ? "-rotate-90" : ""} text-gray-400 group-hover:text-orange-400`}
             >
               <path
                 d="M1 1L5 5L9 1"
@@ -335,7 +439,7 @@ export default function ShoppingList({
               />
             </svg>
           </div>
-          {!collapsedCategories["Suggestions du Chef"] && (
+          {!collapsedCategories[SUGGESTIONS_CATEGORY] && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 animate-in fade-in slide-in-from-top-2 duration-300">
               {suggestions.map((it, idx) => {
                 const id = `Suggestions du Chef-${idx}`;
