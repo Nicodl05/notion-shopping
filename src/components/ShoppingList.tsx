@@ -1,50 +1,15 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-
-interface ShoppingItem {
-  category: string;
-  item: string;
-  quantity: string;
-  recipes?: string;
-  quantityDetail?: string; // New field to store the calculation
-  isCustom?: boolean;
-  customId?: string;
-}
-
-const CATEGORY_ICONS: Record<string, string> = {
-  "Fruits & Légumes": "🥦",
-  "Viandes & Charcuterie": "🥩",
-  "Poissons & Fruits de mer": "🐟",
-  Poissons: "🐟",
-  "Produits laitiers & Œufs": "🧀",
-  "Produits laitiers": "🧀",
-  "Épicerie sèche": "🧂",
-  Conserves: "🫙",
-  "Boulangerie & Pâtisserie": "🥐",
-  Boulangerie: "🥐",
-  Surgelés: "❄️",
-  "Boissons & Condiments": "🧃",
-  Boissons: "🧃",
-  Condiments: "🧃",
-};
-
-const getCategoryIcon = (cat: string) => CATEGORY_ICONS[cat] ?? "🛒";
+import {
+  ALL_CATEGORIES,
+  DEFAULT_CUSTOM_CATEGORY,
+  SUGGESTIONS_CATEGORY,
+  getCategoryIcon,
+} from "@/lib/categories";
+import type { ShoppingItem } from "@/types/shopping";
 
 const isGuessed = (quantity: string) => !quantity || !/\d/.test(quantity);
 
-const ALL_CATEGORIES = [
-  "Fruits & Légumes",
-  "Viandes & Charcuterie",
-  "Poissons & Fruits de mer",
-  "Produits laitiers & Œufs",
-  "Épicerie sèche",
-  "Conserves",
-  "Boulangerie & Pâtisserie",
-  "Surgelés",
-  "Boissons & Condiments",
-  "Utilitaires",
-  "Ajouts personnalisés",
-];
 
 export default function ShoppingList({
   items: rawItems,
@@ -65,7 +30,7 @@ export default function ShoppingList({
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemQty, setNewItemQty] = useState("");
-  const [newItemCategory, setNewItemCategory] = useState("Ajouts personnalisés");
+  const [newItemCategory, setNewItemCategory] = useState(DEFAULT_CUSTOM_CATEGORY);
   const itemNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -106,7 +71,7 @@ export default function ShoppingList({
   // Group items by Category and Product Name to avoid duplicates if the AI fails to group
   const items = React.useMemo(() => {
     const grouped = rawItems.reduce((acc, current) => {
-      if (current.category === "Suggestions du Chef") {
+      if (current.category === SUGGESTIONS_CATEGORY) {
         acc.push(current);
         return acc;
       }
@@ -164,13 +129,13 @@ export default function ShoppingList({
   };
 
   const categories = Array.from(new Set(items.map((it) => it.category)));
-  const mainCategories = categories.filter((c) => c !== "Suggestions du Chef");
+  const mainCategories = categories.filter((c) => c !== SUGGESTIONS_CATEGORY);
   const suggestions = items.filter(
-    (it) => it.category === "Suggestions du Chef",
+    (it) => it.category === SUGGESTIONS_CATEGORY,
   );
 
   const totalCount = items.filter(
-    (it) => it.category !== "Suggestions du Chef",
+    (it) => it.category !== SUGGESTIONS_CATEGORY,
   ).length;
   const checkedCount = Object.entries(checkedItems).filter(
     ([id, checked]) => checked && !id.startsWith("Suggestions du Chef-"),
@@ -178,7 +143,7 @@ export default function ShoppingList({
 
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
   const guessedCount = items.filter(
-    (it) => it.category !== "Suggestions du Chef" && isGuessed(it.quantity),
+    (it) => it.category !== SUGGESTIONS_CATEGORY && isGuessed(it.quantity),
   ).length;
 
   if (items.length === 0) return null;
@@ -433,7 +398,7 @@ export default function ShoppingList({
                   Ajouter
                 </button>
                 <button
-                  onClick={() => { setShowAddForm(false); setNewItemName(""); setNewItemQty(""); setNewItemCategory("Ajouts personnalisés"); }}
+                  onClick={() => { setShowAddForm(false); setNewItemName(""); setNewItemQty(""); setNewItemCategory(DEFAULT_CUSTOM_CATEGORY); }}
                   className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-all"
                 >
                   Annuler
@@ -447,7 +412,7 @@ export default function ShoppingList({
       {suggestions.length > 0 && (
         <div className="mt-10 pt-6 border-t border-gray-200/60">
           <div
-            onClick={() => toggleCategory("Suggestions du Chef")}
+            onClick={() => toggleCategory(SUGGESTIONS_CATEGORY)}
             className="flex items-center justify-between mb-4 px-1 cursor-pointer group"
           >
             <div className="flex items-center gap-2">
@@ -463,7 +428,7 @@ export default function ShoppingList({
               height="8"
               viewBox="0 0 10 6"
               fill="none"
-              className={`transition-transform duration-300 ${collapsedCategories["Suggestions du Chef"] ? "-rotate-90" : ""} text-gray-400 group-hover:text-orange-400`}
+              className={`transition-transform duration-300 ${collapsedCategories[SUGGESTIONS_CATEGORY] ? "-rotate-90" : ""} text-gray-400 group-hover:text-orange-400`}
             >
               <path
                 d="M1 1L5 5L9 1"
@@ -474,7 +439,7 @@ export default function ShoppingList({
               />
             </svg>
           </div>
-          {!collapsedCategories["Suggestions du Chef"] && (
+          {!collapsedCategories[SUGGESTIONS_CATEGORY] && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 animate-in fade-in slide-in-from-top-2 duration-300">
               {suggestions.map((it, idx) => {
                 const id = `Suggestions du Chef-${idx}`;
