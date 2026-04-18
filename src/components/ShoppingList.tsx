@@ -258,6 +258,7 @@ export default function ShoppingList({
                       const hasRecipes = it.recipes && it.recipes !== "Général";
                       const hasDetails = hasRecipes || !!it.quantityDetail;
                       const guessed = isGuessed(it.quantity);
+                      const customId = it.customId;
                       return (
                         <div key={id} className="flex flex-col w-full">
                           <div className="flex items-start gap-3 px-4 py-4 hover:bg-gray-50/50 transition-colors group select-none">
@@ -339,12 +340,11 @@ export default function ShoppingList({
                                 {it.quantity}
                               </span>
                             )}
-                            {it.isCustom && it.customId && (
+                            {it.isCustom && customId && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const cid = it.customId;
-                                  if (cid) handleRemoveCustomItem(cid);
+                                  handleRemoveCustomItem(customId);
                                 }}
                                 title="Supprimer"
                                 className="shrink-0 ml-1 w-5 h-5 flex items-center justify-center rounded-full text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all self-start mt-1"
@@ -433,7 +433,7 @@ export default function ShoppingList({
                   Ajouter
                 </button>
                 <button
-                  onClick={() => { setShowAddForm(false); setNewItemName(""); setNewItemQty(""); }}
+                  onClick={() => { setShowAddForm(false); setNewItemName(""); setNewItemQty(""); setNewItemCategory("Ajouts personnalisés"); }}
                   className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-all"
                 >
                   Annuler
