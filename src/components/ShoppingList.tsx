@@ -59,6 +59,8 @@ export default function ShoppingList({
     Record<string, boolean>
   >({});
 
+  const customIdCounterRef = useRef(0);
+
   const [customItems, setCustomItems] = useState<ShoppingItem[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItemName, setNewItemName] = useState("");
@@ -75,7 +77,8 @@ export default function ShoppingList({
   const handleAddItem = () => {
     const name = newItemName.trim();
     if (!name) return;
-    const id = `custom-${Date.now()}-${Math.random()}`;
+    customIdCounterRef.current += 1;
+    const id = `custom-${customIdCounterRef.current}`;
     setCustomItems((prev) => [
       ...prev,
       {
@@ -89,6 +92,11 @@ export default function ShoppingList({
     setNewItemName("");
     setNewItemQty("");
     setShowAddForm(false);
+  };
+
+  const handleAddItemKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleAddItem();
+    if (e.key === "Escape") setShowAddForm(false);
   };
 
   const handleRemoveCustomItem = (customId: string) => {
@@ -335,7 +343,8 @@ export default function ShoppingList({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleRemoveCustomItem(it.customId!);
+                                  const cid = it.customId;
+                                  if (cid) handleRemoveCustomItem(cid);
                                 }}
                                 title="Supprimer"
                                 className="shrink-0 ml-1 w-5 h-5 flex items-center justify-center rounded-full text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all self-start mt-1"
@@ -393,7 +402,7 @@ export default function ShoppingList({
                 placeholder="Nom de l'article *"
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleAddItem(); if (e.key === "Escape") setShowAddForm(false); }}
+                onKeyDown={handleAddItemKeyDown}
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder-gray-300 focus:outline-none focus:border-[#5C8C6A] transition-colors"
               />
               <div className="flex gap-2">
@@ -402,7 +411,7 @@ export default function ShoppingList({
                   placeholder="Quantité (optionnel)"
                   value={newItemQty}
                   onChange={(e) => setNewItemQty(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddItem(); if (e.key === "Escape") setShowAddForm(false); }}
+                  onKeyDown={handleAddItemKeyDown}
                   className="flex-1 px-3 py-2 rounded-xl border border-gray-200 text-sm text-[#1A1A1A] placeholder-gray-300 focus:outline-none focus:border-[#5C8C6A] transition-colors"
                 />
                 <select
