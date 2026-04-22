@@ -67,7 +67,7 @@ export async function GET() {
       const data = await dbRes.json();
 
       if (data.results.length === 0) {
-        return NextResponse.json({ content: "", empty: true });
+        return NextResponse.json({ empty: true });
       }
 
       const rows = data.results.map((page: any) => {
