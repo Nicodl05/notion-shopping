@@ -5,7 +5,7 @@ import ShoppingList from "@/components/ShoppingList";
 import { Loader2, RefreshCw } from "lucide-react";
 import type { ShoppingItem } from "@/types/shopping";
 
-type UIState = "idle" | "loading" | "success" | "error";
+type UIState = "idle" | "loading" | "success" | "error" | "empty";
 
 export default function Home() {
   const [notionContent, setNotionContent] = useState<string>("");
@@ -20,7 +20,13 @@ export default function Home() {
           throw new Error("Impossible de récupérer le planning Notion.");
         return res.json();
       })
-      .then((data) => setNotionContent(data.content))
+      .then((data) => {
+        if (data.empty) {
+          setUiState("empty");
+        } else {
+          setNotionContent(data.content);
+        }
+      })
       .catch((err) => {
         setErrorMessage(err.message);
         setUiState("error");
@@ -64,6 +70,7 @@ export default function Home() {
 
   const isLoading = uiState === "loading";
   const hasResult = uiState === "success";
+  const isEmpty = uiState === "empty";
 
   return (
     <main className="min-h-screen bg-[#F8F7F4] pb-24 md:pb-32">
@@ -129,6 +136,29 @@ export default function Home() {
               Une erreur est survenue
             </p>
             <p className="text-red-500 text-sm">{errorMessage}</p>
+          </div>
+        )}
+
+        {isEmpty && (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 mb-8 flex flex-col items-center text-center gap-3">
+            <span className="text-4xl">📅</span>
+            <p className="font-semibold text-amber-800 text-base">
+              Aucun repas planifié pour les 10 prochains jours
+            </p>
+            <p className="text-amber-600 text-sm max-w-sm">
+              Votre planning Notion est vide pour cette période. Ajoutez des
+              repas dans Notion pour pouvoir générer votre liste de courses.
+            </p>
+            {process.env.NEXT_PUBLIC_NOTION_PAGE_URL && (
+              <a
+                href={process.env.NEXT_PUBLIC_NOTION_PAGE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-2 bg-amber-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber-800 active:scale-95 transition-all"
+              >
+                Ouvrir Notion
+              </a>
+            )}
           </div>
         )}
 
