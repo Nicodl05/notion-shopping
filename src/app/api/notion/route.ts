@@ -66,6 +66,10 @@ export async function GET() {
     if (dbRes.ok) {
       const data = await dbRes.json();
 
+      if (data.results.length === 0) {
+        return NextResponse.json({ empty: true });
+      }
+
       const rows = data.results.map((page: any) => {
         const props = page.properties;
 
