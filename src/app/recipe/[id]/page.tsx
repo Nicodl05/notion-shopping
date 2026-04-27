@@ -135,7 +135,7 @@ export default function RecipeDetailsPage() {
             {!recipe.hasTitle && (
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-4">
                 <p className="text-amber-800 text-sm font-medium">
-                  ⚠️ Le titre de cette recette n'est pas renseigné dans Notion.
+                  ⚠️ Le titre de cette recette n&apos;est pas renseigné dans Notion.
                   Veuillez le compléter pour accéder au lien de la recette.
                 </p>
               </div>

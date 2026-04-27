@@ -145,7 +145,7 @@ export async function GET() {
         };
       });
 
-      const rows = recipes.map((r) => r.textSummary);
+      const rows = recipes.map((r: any) => r.textSummary);
 
       return NextResponse.json({
         content: "PLANNING DE LA SEMAINE:\n\n" + rows.join("\n\n"),
