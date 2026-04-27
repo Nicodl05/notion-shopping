@@ -3,12 +3,13 @@ import React, { useState, useEffect } from "react";
 import NotionContent from "@/components/NotionContent";
 import ShoppingList from "@/components/ShoppingList";
 import { Loader2, RefreshCw } from "lucide-react";
-import type { ShoppingItem } from "@/types/shopping";
+import type { ShoppingItem, Recipe } from "@/types/shopping";
 
 type UIState = "idle" | "loading" | "success" | "error" | "empty";
 
 export default function Home() {
   const [notionContent, setNotionContent] = useState<string>("");
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [uiState, setUiState] = useState<UIState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -25,6 +26,7 @@ export default function Home() {
           setUiState("empty");
         } else {
           setNotionContent(data.content);
+          setRecipes(data.recipes || []);
         }
       })
       .catch((err) => {
@@ -164,7 +166,7 @@ export default function Home() {
 
         {!isLoading && (
           <div className="space-y-8">
-            <NotionContent content={notionContent} />
+            <NotionContent content={notionContent} recipes={recipes} />
             <ShoppingList items={shoppingItems} />
           </div>
         )}

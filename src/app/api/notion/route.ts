@@ -70,7 +70,25 @@ export async function GET() {
         return NextResponse.json({ empty: true });
       }
 
-      const rows = data.results.map((page: any) => {
+      const extractText = (prop: any): string => {
+        if (!prop) return "";
+        if (prop.type === "rich_text")
+          return prop.rich_text.map((t: any) => t.plain_text).join("");
+        if (prop.type === "formula") return prop.formula.string || "";
+        if (prop.type === "rollup")
+          return (
+            prop.rollup.array
+              ?.map(
+                (item: any) =>
+                  item.rich_text?.map((t: any) => t.plain_text).join("") ||
+                  "",
+              )
+              .join(", ") || ""
+          );
+        return "";
+      };
+
+      const recipes = data.results.map((page: any) => {
         const props = page.properties;
 
         const nameProp: any =
@@ -97,38 +115,42 @@ export async function GET() {
             n.includes("\u03a3"),
         );
 
-        const extractText = (prop: any): string => {
-          if (!prop) return "";
-          if (prop.type === "rich_text")
-            return prop.rich_text.map((t: any) => t.plain_text).join("");
-          if (prop.type === "formula") return prop.formula.string || "";
-          if (prop.type === "rollup")
-            return (
-              prop.rollup.array
-                ?.map(
-                  (item: any) =>
-                    item.rich_text?.map((t: any) => t.plain_text).join("") ||
-                    "",
-                )
-                .join(", ") || ""
-            );
-          return "";
-        };
+        const ingredientsData = ingredientEntries.map(([colName, prop]) => ({
+          name: colName,
+          value: extractText(prop as any),
+        }));
 
-        const ingreds = ingredientEntries
-          .map(([colName, prop]) => {
-            const text = extractText(prop as any);
-            return text ? `[${colName}] ${text}` : "";
-          })
-          .filter(Boolean)
+        const ingreds = ingredientsData
+          .filter((ing) => ing.value)
+          .map((ing) => `[${ing.name}] ${ing.value}`)
           .join("\n");
 
-        return `${dateLabel ? `[${dateLabel}] ` : ""}Recette: ${name}${ingreds ? ` | Ingrédients: ${ingreds}` : ""}`;
+        // Extract URL from page (if title has a link)
+        let recipeUrl = "";
+        if (nameProp?.title?.[0]?.href) {
+          recipeUrl = nameProp.title[0].href;
+        } else if (page.url) {
+          recipeUrl = page.url;
+        }
+
+        return {
+          id: page.id,
+          name,
+          dateLabel,
+          dateValue: dateVal,
+          ingredients: ingredientsData.filter((ing) => ing.value),
+          textSummary: `${dateLabel ? `[${dateLabel}] ` : ""}Recette: ${name}${ingreds ? ` | Ingrédients: ${ingreds}` : ""}`,
+          url: recipeUrl,
+          hasTitle: name !== "Sans nom",
+        };
       });
+
+      const rows = recipes.map((r) => r.textSummary);
 
       return NextResponse.json({
         content: "PLANNING DE LA SEMAINE:\n\n" + rows.join("\n\n"),
         blocks: data.results,
+        recipes,
       });
     }
   }

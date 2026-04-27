@@ -7,3 +7,19 @@ export interface ShoppingItem {
   isCustom?: boolean;
   customId?: string;
 }
+
+export interface RecipeIngredient {
+  name: string;
+  value: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  dateLabel: string;
+  dateValue: string;
+  ingredients: RecipeIngredient[];
+  textSummary: string;
+  url: string;
+  hasTitle: boolean;
+}
