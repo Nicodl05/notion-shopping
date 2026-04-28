@@ -64,7 +64,19 @@ export default function Home() {
       uiState,
       errorMessage,
     };
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedState));
+
+    try {
+      sessionStorage.setItem(
+        SESSION_STORAGE_KEY,
+        JSON.stringify(persistedState)
+      );
+    } catch {
+      try {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch {
+        // Ignore storage cleanup errors to avoid breaking the page.
+      }
+    }
   }, [notionContent, recipes, shoppingItems, uiState, errorMessage, isHydrated]);
 
   useEffect(() => {

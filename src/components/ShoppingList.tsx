@@ -26,7 +26,28 @@ const readPersistedShoppingListState = (): Partial<PersistedShoppingListState> =
   try {
     const rawState = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!rawState) return {};
-    return JSON.parse(rawState) as Partial<PersistedShoppingListState>;
+    const parsed = JSON.parse(rawState);
+
+    // Validate types before using
+    const validated: Partial<PersistedShoppingListState> = {};
+
+    if (parsed.checkedItems && typeof parsed.checkedItems === "object") {
+      validated.checkedItems = parsed.checkedItems;
+    }
+    if (parsed.expandedItems && typeof parsed.expandedItems === "object") {
+      validated.expandedItems = parsed.expandedItems;
+    }
+    if (parsed.collapsedCategories && typeof parsed.collapsedCategories === "object") {
+      validated.collapsedCategories = parsed.collapsedCategories;
+    }
+    if (Array.isArray(parsed.customItems)) {
+      validated.customItems = parsed.customItems;
+    }
+    if (typeof parsed.customIdCounter === "number") {
+      validated.customIdCounter = parsed.customIdCounter;
+    }
+
+    return validated;
   } catch {
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
     return {};
@@ -70,7 +91,16 @@ export default function ShoppingList({
       customItems,
       customIdCounter: customIdCounterRef.current,
     };
-    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedState));
+
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedState));
+    } catch {
+      try {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch {
+        // Ignore storage cleanup errors to avoid breaking the page.
+      }
+    }
   }, [checkedItems, expandedItems, collapsedCategories, customItems]);
 
   useEffect(() => {
@@ -191,7 +221,7 @@ export default function ShoppingList({
     (it) => it.category !== SUGGESTIONS_CATEGORY,
   ).length;
   const checkedCount = Object.entries(checkedItems).filter(
-    ([id, checked]) => checked && !id.startsWith("Suggestions du Chef-"),
+    ([id, checked]) => checked && !id.startsWith(`${SUGGESTIONS_CATEGORY}-`),
   ).length;
 
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
@@ -280,7 +310,8 @@ export default function ShoppingList({
                   {items
                     .filter((it) => it.category === cat)
                     .map((it, idx) => {
-                      const id = `${cat}-${idx}`;
+                      // Use stable ID based on item content, not index
+                      const id = it.customId || `${cat}-${it.item.toLowerCase().trim()}`;
                       const checked = !!checkedItems[id];
                       const expanded = !!expandedItems[id];
                       const hasRecipes = it.recipes && it.recipes !== "Général";
@@ -505,7 +536,8 @@ export default function ShoppingList({
           {!collapsedCategories[SUGGESTIONS_CATEGORY] && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 animate-in fade-in slide-in-from-top-2 duration-300">
               {suggestions.map((it, idx) => {
-                const id = `Suggestions du Chef-${idx}`;
+                // Use stable ID based on item content, not index
+                const id = `${SUGGESTIONS_CATEGORY}-${it.item.toLowerCase().trim()}`;
                 const checked = !!checkedItems[id];
                 return (
                   <div

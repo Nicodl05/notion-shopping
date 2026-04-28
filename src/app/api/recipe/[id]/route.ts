@@ -30,9 +30,9 @@ const getRelatedRecipeId = (props: Record<string, any>) => {
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
-  const { id } = await params;
+  const { id } = params;
 
   if (!process.env.NOTION_API_KEY) {
     return NextResponse.json(
@@ -70,14 +70,12 @@ export async function GET(
     const primaryName = findPrimaryPageName(recipeProps);
     const name = primaryName.name;
 
-    // Extract URL from title if it has a link
+    // Extract URL from title if it has a link or URL property (external recipe links only)
     let recipeUrl = "";
     if ((recipeProps?.[primaryName.sourceProperty] as any)?.title?.[0]?.href) {
       recipeUrl = (recipeProps[primaryName.sourceProperty] as any).title[0].href;
     } else if ((recipeProps as any)?.URL?.url) {
       recipeUrl = (recipeProps as any).URL.url;
-    } else if (recipePage.url) {
-      recipeUrl = recipePage.url;
     }
 
     // Extract date
@@ -132,7 +130,7 @@ export async function GET(
       dateValue: dateVal,
       ingredients,
       otherProperties,
-      hasTitle: primaryName.hasTitle || name !== "Sans nom",
+      hasTitle: primaryName.hasTitle,
     });
   } catch (error) {
     console.error("Error fetching recipe:", error);

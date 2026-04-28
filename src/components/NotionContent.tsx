@@ -110,8 +110,16 @@ export default function NotionContent({
                           <Link
                             href={`/recipe/${r.id}`}
                             className="inline-block text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1 hover:bg-[#EAF3EC] hover:text-[#5C8C6A] hover:border-[#5C8C6A] transition-all cursor-pointer"
+                            title={
+                              !r.hasTitle
+                                ? "Titre non renseigné dans Notion"
+                                : undefined
+                            }
                           >
                             {r.name}
+                            {!r.hasTitle && (
+                              <span className="ml-1 text-amber-500">⚠️</span>
+                            )}
                           </Link>
                         ) : (
                           <span

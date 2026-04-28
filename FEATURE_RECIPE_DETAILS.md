@@ -59,8 +59,8 @@ Lorsque le titre d'une recette n'est pas rempli dans Notion, l'application n'ava
 ## Cas particuliers
 
 ### Recettes sans titre
-- Affichées avec un avertissement (⚠️)
-- Non cliquables depuis le planning
+- Affichées avec un avertissement (⚠️) même quand elles sont cliquables
+- Cliquables depuis le planning (vers la page de détails)
 - Message d'information sur la page de détails
 
 ### Recettes sans lien

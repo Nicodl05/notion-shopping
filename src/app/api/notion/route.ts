@@ -112,11 +112,9 @@ export async function GET() {
             .map((ing) => `[${ing.name}] ${ing.value}`)
             .join("\n");
 
-          const recipeUrl =
-            page.url ||
-            ((pageProps?.[primaryName.sourceProperty] as any)?.title?.[0]
-              ?.href ||
-              "");
+          const titleHref = (pageProps?.[primaryName.sourceProperty] as any)
+            ?.title?.[0]?.href;
+          const recipeUrl = titleHref || page.url || "";
 
           return {
             id: relatedRecipeId || page.id,
