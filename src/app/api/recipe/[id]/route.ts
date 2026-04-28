@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  extractPropertyText,
+  findPrimaryPageName,
+  isIngredientProperty,
+} from "@/lib/notion";
 
 const NOTION_VERSION = "2022-06-28";
 
@@ -15,22 +20,13 @@ async function notionRequest(path: string, method = "GET", body?: object) {
   return res;
 }
 
-const extractText = (prop: any): string => {
-  if (!prop) return "";
-  if (prop.type === "rich_text")
-    return prop.rich_text.map((t: any) => t.plain_text).join("");
-  if (prop.type === "formula") return prop.formula.string || "";
-  if (prop.type === "rollup")
-    return (
-      prop.rollup.array
-        ?.map(
-          (item: any) =>
-            item.rich_text?.map((t: any) => t.plain_text).join("") || "",
-        )
-        .join(", ") || ""
-    );
-  return "";
+const getRelatedRecipeId = (props: Record<string, any>) => {
+  const relationEntry = Object.entries(props).find(([, prop]) => prop?.type === "relation");
+  const relation = relationEntry?.[1]?.relation;
+  if (!Array.isArray(relation) || relation.length === 0) return "";
+  return relation[0]?.id || "";
 };
+
 
 export async function GET(
   request: Request,
@@ -56,21 +52,32 @@ export async function GET(
     }
 
     const page = await pageRes.json();
-    const props = page.properties;
+    const props = page.properties || {};
+    const relatedRecipeId = getRelatedRecipeId(props);
+
+    let recipePage = page;
+    let recipeProps = props;
+
+    if (relatedRecipeId) {
+      const relatedRes = await notionRequest(`/pages/${relatedRecipeId}`);
+      if (relatedRes.ok) {
+        recipePage = await relatedRes.json();
+        recipeProps = recipePage.properties || {};
+      }
+    }
 
     // Extract recipe name
-    const nameProp: any =
-      props.Nom ||
-      props.Name ||
-      Object.values(props).find((p: any) => p.type === "title");
-    const name = nameProp?.title?.[0]?.plain_text || "Sans nom";
+    const primaryName = findPrimaryPageName(recipeProps);
+    const name = primaryName.name;
 
     // Extract URL from title if it has a link
     let recipeUrl = "";
-    if (nameProp?.title?.[0]?.href) {
-      recipeUrl = nameProp.title[0].href;
-    } else if (page.url) {
-      recipeUrl = page.url;
+    if ((recipeProps?.[primaryName.sourceProperty] as any)?.title?.[0]?.href) {
+      recipeUrl = (recipeProps[primaryName.sourceProperty] as any).title[0].href;
+    } else if ((recipeProps as any)?.URL?.url) {
+      recipeUrl = (recipeProps as any).URL.url;
+    } else if (recipePage.url) {
+      recipeUrl = recipePage.url;
     }
 
     // Extract date
@@ -91,46 +98,41 @@ export async function GET(
       : "";
 
     // Extract ingredients
-    const ingredientEntries = Object.entries(props).filter(
-      ([n]) =>
-        n.toLowerCase().includes("ingrédient") ||
-        n.toLowerCase().includes("ingredient") ||
-        n.includes("\u03a3"),
+    const ingredientEntries = Object.entries(recipeProps).filter(([n]) =>
+      isIngredientProperty(n),
     );
 
     const ingredients = ingredientEntries
       .map(([colName, prop]) => ({
         name: colName,
-        value: extractText(prop as any),
+        value: extractPropertyText(prop as any),
       }))
       .filter((ing) => ing.value);
 
     // Extract all other properties
-    const otherProperties = Object.entries(props)
+    const otherProperties = Object.entries(recipeProps)
       .filter(
         ([name, prop]: any) =>
           prop.type !== "title" &&
           prop.type !== "date" &&
-          !name.toLowerCase().includes("ingrédient") &&
-          !name.toLowerCase().includes("ingredient") &&
-          !name.includes("\u03a3"),
+          !isIngredientProperty(name),
       )
       .map(([name, prop]: any) => ({
         name,
         type: prop.type,
-        value: extractText(prop),
+        value: extractPropertyText(prop),
       }))
       .filter((p) => p.value);
 
     return NextResponse.json({
-      id: page.id,
+      id: relatedRecipeId || page.id,
       name,
       url: recipeUrl,
       dateLabel,
       dateValue: dateVal,
       ingredients,
       otherProperties,
-      hasTitle: name !== "Sans nom",
+      hasTitle: primaryName.hasTitle || name !== "Sans nom",
     });
   } catch (error) {
     console.error("Error fetching recipe:", error);

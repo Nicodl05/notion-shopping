@@ -31,10 +31,10 @@ function parsePlanning(
       current = {
         date: dayMatch[1],
         recipes:
-          recipeName && recipeName !== "Sans nom"
+          recipe || recipeName
             ? [
                 {
-                  name: recipeName,
+                  name: recipe?.name || recipeName || "Recette sans titre",
                   id: recipe?.id || "",
                   hasTitle: recipe?.hasTitle ?? true,
                 },
@@ -46,9 +46,9 @@ function parsePlanning(
       const name = line.replace("Recette:", "").split("|")[0].trim();
       if (!current) current = { date: "Planning", recipes: [] };
       const recipe = recipeData?.[recipeIndex];
-      if (name && name !== "Sans nom") {
+      if (recipe || name) {
         current.recipes.push({
-          name,
+          name: recipe?.name || name || "Recette sans titre",
           id: recipe?.id || "",
           hasTitle: recipe?.hasTitle ?? true,
         });
@@ -106,7 +106,7 @@ export default function NotionContent({
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {day.recipes.map((r, j) => (
                       <div key={j}>
-                        {r.id && r.hasTitle ? (
+                        {r.id ? (
                           <Link
                             href={`/recipe/${r.id}`}
                             className="inline-block text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1 hover:bg-[#EAF3EC] hover:text-[#5C8C6A] hover:border-[#5C8C6A] transition-all cursor-pointer"
