@@ -3,17 +3,79 @@ import React, { useState, useEffect } from "react";
 import NotionContent from "@/components/NotionContent";
 import ShoppingList from "@/components/ShoppingList";
 import { Loader2, RefreshCw } from "lucide-react";
-import type { ShoppingItem } from "@/types/shopping";
+import type { ShoppingItem, Recipe } from "@/types/shopping";
 
 type UIState = "idle" | "loading" | "success" | "error" | "empty";
 
+const SESSION_STORAGE_KEY = "notion-shopping:home-state";
+const SHOPPING_LIST_SESSION_STORAGE_KEY = "notion-shopping:shopping-list";
+
+type PersistedState = {
+  notionContent: string;
+  recipes: Recipe[];
+  shoppingItems: ShoppingItem[];
+  uiState: UIState;
+  errorMessage: string;
+};
+
 export default function Home() {
   const [notionContent, setNotionContent] = useState<string>("");
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [uiState, setUiState] = useState<UIState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    try {
+      const rawState = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (rawState) {
+        const parsedState = JSON.parse(rawState) as Partial<PersistedState>;
+        if (typeof parsedState.notionContent === "string") {
+          setNotionContent(parsedState.notionContent);
+        }
+        if (Array.isArray(parsedState.recipes)) {
+          setRecipes(parsedState.recipes);
+        }
+        if (Array.isArray(parsedState.shoppingItems)) {
+          setShoppingItems(parsedState.shoppingItems);
+        }
+        if (parsedState.uiState) {
+          setUiState(parsedState.uiState);
+        }
+        if (typeof parsedState.errorMessage === "string") {
+          setErrorMessage(parsedState.errorMessage);
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } finally {
+      setIsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const persistedState: PersistedState = {
+      notionContent,
+      recipes,
+      shoppingItems,
+      uiState,
+      errorMessage,
+    };
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedState));
+  }, [notionContent, recipes, shoppingItems, uiState, errorMessage, isHydrated]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    if (notionContent || uiState === "success" || uiState === "empty") {
+      return;
+    }
+
     fetch("/api/notion")
       .then((res) => {
         if (!res.ok)
@@ -25,13 +87,14 @@ export default function Home() {
           setUiState("empty");
         } else {
           setNotionContent(data.content);
+          setRecipes(data.recipes || []);
         }
       })
       .catch((err) => {
         setErrorMessage(err.message);
         setUiState("error");
       });
-  }, []);
+  }, [isHydrated, notionContent, uiState]);
 
   const handleGenerate = async () => {
     if (!notionContent) {
@@ -66,6 +129,8 @@ export default function Home() {
     setUiState("idle");
     setErrorMessage("");
     setShoppingItems([]);
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    sessionStorage.removeItem(SHOPPING_LIST_SESSION_STORAGE_KEY);
   };
 
   const isLoading = uiState === "loading";
@@ -164,7 +229,7 @@ export default function Home() {
 
         {!isLoading && (
           <div className="space-y-8">
-            <NotionContent content={notionContent} />
+            <NotionContent content={notionContent} recipes={recipes} />
             <ShoppingList items={shoppingItems} />
           </div>
         )}

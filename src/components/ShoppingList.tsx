@@ -10,28 +10,68 @@ import type { ShoppingItem } from "@/types/shopping";
 
 const isGuessed = (quantity: string) => !quantity || !/\d/.test(quantity);
 
+const SESSION_STORAGE_KEY = "notion-shopping:shopping-list";
+
+type PersistedShoppingListState = {
+  checkedItems: Record<string, boolean>;
+  expandedItems: Record<string, boolean>;
+  collapsedCategories: Record<string, boolean>;
+  customItems: ShoppingItem[];
+  customIdCounter: number;
+};
+
+const readPersistedShoppingListState = (): Partial<PersistedShoppingListState> => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const rawState = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!rawState) return {};
+    return JSON.parse(rawState) as Partial<PersistedShoppingListState>;
+  } catch {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    return {};
+  }
+};
+
 
 export default function ShoppingList({
   items: rawItems,
 }: {
   items: ShoppingItem[];
 }) {
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const persistedState = readPersistedShoppingListState();
+
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(
+    () => persistedState.checkedItems ?? {},
+  );
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
-    {},
+    () => persistedState.expandedItems ?? {},
   );
   const [collapsedCategories, setCollapsedCategories] = useState<
     Record<string, boolean>
-  >({});
+  >(() => persistedState.collapsedCategories ?? {});
 
-  const customIdCounterRef = useRef(0);
+  const customIdCounterRef = useRef(persistedState.customIdCounter ?? 0);
 
-  const [customItems, setCustomItems] = useState<ShoppingItem[]>([]);
+  const [customItems, setCustomItems] = useState<ShoppingItem[]>(
+    () => persistedState.customItems ?? [],
+  );
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemQty, setNewItemQty] = useState("");
   const [newItemCategory, setNewItemCategory] = useState(DEFAULT_CUSTOM_CATEGORY);
   const itemNameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const persistedState: PersistedShoppingListState = {
+      checkedItems,
+      expandedItems,
+      collapsedCategories,
+      customItems,
+      customIdCounter: customIdCounterRef.current,
+    };
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedState));
+  }, [checkedItems, expandedItems, collapsedCategories, customItems]);
 
   useEffect(() => {
     if (showAddForm) {
@@ -66,6 +106,19 @@ export default function ShoppingList({
 
   const handleRemoveCustomItem = (customId: string) => {
     setCustomItems((prev) => prev.filter((it) => it.customId !== customId));
+  };
+
+  const handleResetPersistedState = () => {
+    setCheckedItems({});
+    setExpandedItems({});
+    setCollapsedCategories({});
+    setCustomItems([]);
+    setShowAddForm(false);
+    setNewItemName("");
+    setNewItemQty("");
+    setNewItemCategory(DEFAULT_CUSTOM_CATEGORY);
+    customIdCounterRef.current = 0;
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
   };
 
   // Group items by Category and Product Name to avoid duplicates if the AI fails to group
@@ -150,7 +203,17 @@ export default function ShoppingList({
 
   return (
     <div className="space-y-4 pb-4">
-      <h2 className="text-xl font-bold text-[#1A1A1A]">Liste de courses</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-[#1A1A1A]">Liste de courses</h2>
+        {(Object.keys(checkedItems).length > 0 || customItems.length > 0) && (
+          <button
+            onClick={handleResetPersistedState}
+            className="text-xs font-semibold text-gray-400 hover:text-[#1A1A1A] transition-colors"
+          >
+            Réinitialiser la liste
+          </button>
+        )}
+      </div>
 
       <div className="bg-white rounded-2xl p-4 md:p-5 border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-3 text-sm">

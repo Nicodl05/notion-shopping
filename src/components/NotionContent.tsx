@@ -1,18 +1,24 @@
 "use client";
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import Link from "next/link";
+import type { Recipe } from "@/types/shopping";
 
 interface DayPlan {
   date: string;
-  recipes: string[];
+  recipes: Array<{ name: string; id: string; hasTitle: boolean }>;
 }
 
-function parsePlanning(content: string): DayPlan[] {
+function parsePlanning(
+  content: string,
+  recipeData?: Recipe[],
+): DayPlan[] {
   if (!content) return [];
 
   const days: DayPlan[] = [];
   const lines = content.split("\n").filter((l) => l.trim());
   let current: DayPlan | null = null;
+  let recipeIndex = 0;
 
   for (const line of lines) {
     const dayMatch = line.match(/\[([^\]]+)\]/);
@@ -20,14 +26,34 @@ function parsePlanning(content: string): DayPlan[] {
       if (current) days.push(current);
       const rest = line.replace(dayMatch[0], "").trim();
       const recipeMatch = rest.match(/Recette:\s*(.+?)(?:\s*\|.*)?$/);
+      const recipeName = recipeMatch ? recipeMatch[1].trim() : "";
+      const recipe = recipeData?.[recipeIndex];
       current = {
         date: dayMatch[1],
-        recipes: recipeMatch ? [recipeMatch[1].trim()] : [],
+        recipes:
+          recipe || recipeName
+            ? [
+                {
+                  name: recipe?.name || recipeName || "Recette sans titre",
+                  id: recipe?.id || "",
+                  hasTitle: recipe?.hasTitle ?? true,
+                },
+              ]
+            : [],
       };
+      if (recipeName) recipeIndex++;
     } else if (line.startsWith("Recette:")) {
       const name = line.replace("Recette:", "").split("|")[0].trim();
       if (!current) current = { date: "Planning", recipes: [] };
-      if (name && name !== "Sans nom") current.recipes.push(name);
+      const recipe = recipeData?.[recipeIndex];
+      if (recipe || name) {
+        current.recipes.push({
+          name: recipe?.name || name || "Recette sans titre",
+          id: recipe?.id || "",
+          hasTitle: recipe?.hasTitle ?? true,
+        });
+        recipeIndex++;
+      }
     }
   }
   if (current) days.push(current);
@@ -35,9 +61,15 @@ function parsePlanning(content: string): DayPlan[] {
   return days.filter((d) => d.recipes.length > 0);
 }
 
-export default function NotionContent({ content }: { content: string }) {
+export default function NotionContent({
+  content,
+  recipes,
+}: {
+  content: string;
+  recipes?: Recipe[];
+}) {
   const [open, setOpen] = useState(false);
-  const days = parsePlanning(content);
+  const days = parsePlanning(content, recipes);
   const hasData = days.length > 0;
 
   return (
@@ -73,12 +105,30 @@ export default function NotionContent({ content }: { content: string }) {
                   </span>
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {day.recipes.map((r, j) => (
-                      <span
-                        key={j}
-                        className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1"
-                      >
-                        {r}
-                      </span>
+                      <div key={j}>
+                        {r.id ? (
+                          <Link
+                            href={`/recipe/${r.id}`}
+                            className="inline-block text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1 hover:bg-[#EAF3EC] hover:text-[#5C8C6A] hover:border-[#5C8C6A] transition-all cursor-pointer"
+                          >
+                            {r.name}
+                          </Link>
+                        ) : (
+                          <span
+                            className="inline-block text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1"
+                            title={
+                              !r.hasTitle
+                                ? "Titre non renseigné dans Notion"
+                                : undefined
+                            }
+                          >
+                            {r.name}
+                            {!r.hasTitle && (
+                              <span className="ml-1 text-amber-500">⚠️</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
