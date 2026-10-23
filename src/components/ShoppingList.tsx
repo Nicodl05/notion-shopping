@@ -370,7 +370,7 @@ export default function ShoppingList({
                         <p
                           className={`text-xs leading-relaxed mb-3 ${checked ? "text-gray-500" : "text-gray-600 font-medium"}`}
                         >
-                          {it.quantity}
+                          {it.reason ?? it.quantity}
                         </p>
                         {it.recipes && (
                           <div className="flex items-center gap-1.5">

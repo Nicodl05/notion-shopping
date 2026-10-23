@@ -146,7 +146,7 @@ export default function Home() {
         body: JSON.stringify({ content: notionContent }),
       });
       if (!res.ok) throw new Error("Erreur lors de la génération par Mistral.");
-      const data = await res.json();
+      const data = (await res.json()) as { items: ShoppingItem[] };
       if (!data.items?.length) {
         setErrorMessage("Aucun ingrédient détecté dans le planning.");
         setUiState("error");

@@ -4,6 +4,7 @@ export interface ShoppingItem {
   quantity: string;
   recipes?: string;
   quantityDetail?: string;
+  reason?: string;
   isCustom?: boolean;
   customId?: string;
 }
