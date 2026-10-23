@@ -1,39 +1,58 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
+  createSessionToken,
+  isAuthConfigured,
+  passwordMatches,
+  sessionCookieOptions,
+} from "@/lib/session";
 
 export async function POST(req: Request) {
+  let body: unknown;
   try {
-    const { password } = await req.json();
-    const appPassword = process.env.APP_PASSWORD;
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
+  }
 
-    // Reject if APP_PASSWORD isn't configured for safety
-    if (!appPassword) {
+  try {
+    if (!isAuthConfigured()) {
       return NextResponse.json(
         { error: "Authentification non configurée sur le serveur" },
         { status: 503 },
       );
     }
 
-    if (password === appPassword) {
-      // Create session cookie
-      const response = NextResponse.json({ success: true });
-
-      response.cookies.set("auth_token", appPassword, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-      });
-
-      return response;
+    const password =
+      typeof body === "object" && body !== null
+        ? (body as { password?: unknown }).password
+        : undefined;
+    if (typeof password !== "string") {
+      return NextResponse.json({ error: "Requête invalide" }, { status: 400 });
     }
 
-    return NextResponse.json(
-      { error: "Mot de passe incorrect" },
-      { status: 401 },
+    if (!(await passwordMatches(password))) {
+      return NextResponse.json(
+        { error: "Mot de passe incorrect" },
+        { status: 401 },
+      );
+    }
+
+    const response = NextResponse.json({ success: true });
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      await createSessionToken(),
+      sessionCookieOptions(SESSION_MAX_AGE_SECONDS),
     );
-  } catch (error) {
+    return response;
+  } catch {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
+}
+
+export async function DELETE() {
+  const response = NextResponse.json({ success: true });
+  response.cookies.set(SESSION_COOKIE_NAME, "", sessionCookieOptions(0));
+  return response;
 }

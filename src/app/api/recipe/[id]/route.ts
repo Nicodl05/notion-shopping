@@ -4,6 +4,7 @@ import {
   findPrimaryPageName,
   isIngredientProperty,
 } from "@/lib/notion";
+import { requireApiSession } from "@/lib/session";
 
 const NOTION_VERSION = "2022-06-28";
 
@@ -32,6 +33,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const unauthorized = await requireApiSession();
+  if (unauthorized) return unauthorized;
+
   const { id } = await params;
 
   if (!process.env.NOTION_API_KEY) {
