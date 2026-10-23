@@ -21,6 +21,16 @@ NOTION_PAGE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 - `NOTION_API_KEY`: Notion integration key (Settings → Integrations)
 - `NOTION_PAGE_ID`: Notion database ID (last 32 characters of the URL)
 
+Authentication (required, fail-closed: without them every page redirects to `/login` and every `/api/*` route returns 503 or 401):
+
+```env
+APP_PASSWORD=your-app-password
+SESSION_SECRET=generate-with-openssl-rand-base64-32
+```
+
+- `APP_PASSWORD`: password for the login page
+- `SESSION_SECRET`: HMAC-SHA256 key that signs session cookies, at least 32 characters. Generate with `openssl rand -base64 32`. Set it locally and on Vercel (Project Settings → Environment Variables). Changing it invalidates all sessions.
+
 ## Run the Project
 
 ```bash
