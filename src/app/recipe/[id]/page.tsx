@@ -48,6 +48,9 @@ export default function RecipeDetailsPage() {
 
     if (params.id) {
       fetchRecipe();
+    } else {
+      setError("Identifiant de recette manquant.");
+      setLoading(false);
     }
   }, [params.id]);
 
@@ -81,7 +84,7 @@ export default function RecipeDetailsPage() {
             <p className="font-semibold text-red-700 mb-1">
               Erreur lors du chargement
             </p>
-            <p className="text-red-500 text-sm">{error}</p>
+            <p className="text-red-700 text-sm">{error}</p>
           </div>
         </div>
       </main>
@@ -111,7 +114,7 @@ export default function RecipeDetailsPage() {
                   {recipe.name}
                 </h1>
                 {recipe.dateLabel && (
-                  <div className="inline-flex items-center gap-2 bg-[#EAF3EC] text-[#5C8C6A] px-4 py-2 rounded-xl">
+                  <div className="inline-flex items-center gap-2 bg-[#EAF3EC] text-[#4a7458] px-4 py-2 rounded-xl">
                     <span className="text-lg">📅</span>
                     <span className="text-sm font-semibold capitalize">
                       {recipe.dateLabel}
@@ -127,7 +130,8 @@ export default function RecipeDetailsPage() {
                   className="flex items-center gap-2 bg-[#1A1A1A] text-white px-5 py-3 rounded-xl font-semibold text-sm hover:bg-[#2d2d2d] active:scale-95 transition-all shadow-sm self-start sm:self-auto"
                 >
                   <span>Voir la recette</span>
-                  <ExternalLink size={16} />
+                  <span className="sr-only">(nouvel onglet)</span>
+                  <ExternalLink size={16} aria-hidden="true" />
                 </a>
               )}
             </div>
@@ -157,7 +161,7 @@ export default function RecipeDetailsPage() {
                     key={idx}
                     className="flex flex-col sm:flex-row sm:items-start gap-2 pb-4 border-b border-gray-50 last:border-b-0 last:pb-0"
                   >
-                    <span className="shrink-0 text-xs font-bold text-[#5C8C6A] bg-[#EAF3EC] px-3 py-1.5 rounded-lg uppercase tracking-wider sm:min-w-[140px]">
+                    <span className="shrink-0 text-xs font-bold text-[#4a7458] bg-[#EAF3EC] px-3 py-1.5 rounded-lg uppercase tracking-wider sm:min-w-[140px]">
                       {ingredient.name}
                     </span>
                     <p className="text-[15px] text-gray-700 font-medium leading-relaxed flex-1">

@@ -1,22 +1,23 @@
 @import "tailwindcss";
 
+/* Breakpoint utilisé par les classes xs: (en-têtes, liste de courses). */
+@theme {
+  --breakpoint-xs: 30rem;
+}
+
+/* Thème clair uniquement : le mode sombre n'est pas géré. */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* Pile de polices effective actuelle (Arial hérité du body). */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: Arial, Helvetica, sans-serif;
 }
 
 body {

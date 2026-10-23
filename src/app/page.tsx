@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import NotionContent from "@/components/NotionContent";
 import ShoppingList from "@/components/ShoppingList";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -9,6 +9,7 @@ type UIState = "idle" | "loading" | "success" | "error" | "empty";
 
 const SESSION_STORAGE_KEY = "notion-shopping:home-state";
 const SHOPPING_LIST_SESSION_STORAGE_KEY = "notion-shopping:shopping-list";
+const PLANNING_ERROR_MESSAGE = "Impossible de récupérer le planning Notion.";
 
 type PersistedState = {
   notionContent: string;
@@ -16,7 +17,11 @@ type PersistedState = {
   shoppingItems: ShoppingItem[];
   uiState: UIState;
   errorMessage: string;
+  generationId: number;
 };
+
+const isRestorableUiState = (value: unknown): value is UIState =>
+  value === "idle" || value === "success" || value === "error" || value === "empty";
 
 export default function Home() {
   const [notionContent, setNotionContent] = useState<string>("");
@@ -24,27 +29,75 @@ export default function Home() {
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [uiState, setUiState] = useState<UIState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  // Incrémenté à chaque nouvelle liste ou réinitialisation : sert de clé à ShoppingList.
+  const [generationId, setGenerationId] = useState(0);
+  const [isPlanningFetching, setIsPlanningFetching] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const planningControllerRef = useRef<AbortController | null>(null);
 
+  const loadPlanning = useCallback(async () => {
+    planningControllerRef.current?.abort();
+    const controller = new AbortController();
+    planningControllerRef.current = controller;
+    setIsPlanningFetching(true);
+
+    try {
+      const res = await fetch("/api/notion", { signal: controller.signal });
+      if (!res.ok) throw new Error(PLANNING_ERROR_MESSAGE);
+      const data = await res.json();
+      if (data.empty) {
+        setNotionContent("");
+        setRecipes([]);
+        setUiState("empty");
+      } else {
+        setNotionContent(data.content ?? "");
+        setRecipes(data.recipes || []);
+        setErrorMessage("");
+        setUiState("idle");
+      }
+    } catch (err: unknown) {
+      if (controller.signal.aborted) return;
+      setErrorMessage(err instanceof Error ? err.message : PLANNING_ERROR_MESSAGE);
+      setUiState("error");
+    } finally {
+      if (planningControllerRef.current === controller) {
+        planningControllerRef.current = null;
+        setIsPlanningFetching(false);
+      }
+    }
+  }, []);
+
+  // Restaure l'état puis charge le planning si nécessaire. Annule la requête au démontage.
   useEffect(() => {
+    let storedContent = "";
+    let storedUiState: UIState = "idle";
+
     try {
       const rawState = sessionStorage.getItem(SESSION_STORAGE_KEY);
       if (rawState) {
-        const parsedState = JSON.parse(rawState) as Partial<PersistedState>;
-        if (typeof parsedState.notionContent === "string") {
-          setNotionContent(parsedState.notionContent);
-        }
-        if (Array.isArray(parsedState.recipes)) {
-          setRecipes(parsedState.recipes);
-        }
-        if (Array.isArray(parsedState.shoppingItems)) {
-          setShoppingItems(parsedState.shoppingItems);
-        }
-        if (parsedState.uiState) {
-          setUiState(parsedState.uiState);
-        }
-        if (typeof parsedState.errorMessage === "string") {
-          setErrorMessage(parsedState.errorMessage);
+        const parsedState = JSON.parse(rawState) as Partial<PersistedState> | null;
+        if (parsedState) {
+          if (typeof parsedState.notionContent === "string") {
+            storedContent = parsedState.notionContent;
+            setNotionContent(storedContent);
+          }
+          if (Array.isArray(parsedState.recipes)) {
+            setRecipes(parsedState.recipes);
+          }
+          if (Array.isArray(parsedState.shoppingItems)) {
+            setShoppingItems(parsedState.shoppingItems);
+          }
+          if (typeof parsedState.generationId === "number") {
+            setGenerationId(parsedState.generationId);
+          }
+          if (typeof parsedState.errorMessage === "string") {
+            setErrorMessage(parsedState.errorMessage);
+          }
+          // "loading" n'est jamais restauré : la requête a disparu avec le rechargement.
+          if (isRestorableUiState(parsedState.uiState)) {
+            storedUiState = parsedState.uiState;
+          }
+          setUiState(storedUiState);
         }
       }
     } catch {
@@ -52,7 +105,17 @@ export default function Home() {
     } finally {
       setIsHydrated(true);
     }
-  }, []);
+
+    const hasStoredPlanning =
+      storedContent !== "" || storedUiState === "success" || storedUiState === "empty";
+    if (!hasStoredPlanning) {
+      void loadPlanning();
+    }
+
+    return () => {
+      planningControllerRef.current?.abort();
+    };
+  }, [loadPlanning]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -63,38 +126,10 @@ export default function Home() {
       shoppingItems,
       uiState,
       errorMessage,
+      generationId,
     };
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistedState));
-  }, [notionContent, recipes, shoppingItems, uiState, errorMessage, isHydrated]);
-
-  useEffect(() => {
-    if (!isHydrated) {
-      return;
-    }
-
-    if (notionContent || uiState === "success" || uiState === "empty") {
-      return;
-    }
-
-    fetch("/api/notion")
-      .then((res) => {
-        if (!res.ok)
-          throw new Error("Impossible de récupérer le planning Notion.");
-        return res.json();
-      })
-      .then((data) => {
-        if (data.empty) {
-          setUiState("empty");
-        } else {
-          setNotionContent(data.content);
-          setRecipes(data.recipes || []);
-        }
-      })
-      .catch((err) => {
-        setErrorMessage(err.message);
-        setUiState("error");
-      });
-  }, [isHydrated, notionContent, uiState]);
+  }, [notionContent, recipes, shoppingItems, uiState, errorMessage, generationId, isHydrated]);
 
   const handleGenerate = async () => {
     if (!notionContent) {
@@ -117,6 +152,7 @@ export default function Home() {
         setUiState("error");
       } else {
         setShoppingItems(data.items);
+        setGenerationId((id) => id + 1);
         setUiState("success");
       }
     } catch (err: unknown) {
@@ -125,11 +161,13 @@ export default function Home() {
     }
   };
 
+  // L'état React est la seule source : la persistance le réécrit, et le changement
+  // de génération fait repartir ShoppingList sans coches ni dépliages.
   const handleReset = () => {
     setUiState("idle");
     setErrorMessage("");
     setShoppingItems([]);
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    setGenerationId((id) => id + 1);
     sessionStorage.removeItem(SHOPPING_LIST_SESSION_STORAGE_KEY);
   };
 
@@ -143,17 +181,17 @@ export default function Home() {
         <header className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-4 mb-8 md:mb-12">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <span className="text-2xl md:text-3xl">🛒</span>
+              <span className="text-2xl md:text-3xl" aria-hidden="true">🛒</span>
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-[#1A1A1A] tracking-tight">
                 Notion Shopping
               </h1>
             </div>
             <div className="flex items-center gap-2 ml-[36px] md:ml-[52px]">
-              <p className="text-[11px] md:text-sm text-gray-400 font-medium">
+              <p className="text-[11px] md:text-sm text-gray-600 font-medium">
                 Propulsé par
               </p>
               <div className="flex items-center gap-1 bg-[#F5F5F5] px-2 py-0.5 rounded-md border border-gray-100 scale-90 md:scale-100 origin-left">
-                <svg viewBox="0 0 100 100" className="w-3 h-3 fill-[#FD6F00]">
+                <svg viewBox="0 0 100 100" className="w-3 h-3 fill-[#FD6F00]" aria-hidden="true">
                   <path d="M10 20h20v60H10zM40 20h20v60H40zM70 20h20v60H70zM10 20h80v20H10z" />
                 </svg>
                 <span className="text-[9px] md:text-[10px] font-bold text-[#1A1A1A] tracking-wider uppercase">
@@ -165,9 +203,11 @@ export default function Home() {
           <div className="flex items-center gap-3 self-end xs:self-auto">
             {hasResult && (
               <button
+                type="button"
                 onClick={handleReset}
                 title="Réinitialiser"
-                className="p-2 rounded-full text-gray-400 hover:text-[#1A1A1A] hover:bg-gray-200 transition-all bg-white/50 border border-gray-100 shadow-sm xs:shadow-none xs:bg-transparent xs:border-none"
+                aria-label="Réinitialiser"
+                className="p-2 rounded-full text-gray-600 hover:text-[#1A1A1A] hover:bg-gray-200 transition-all bg-white/50 border border-gray-100 shadow-sm xs:shadow-none xs:bg-transparent xs:border-none"
               >
                 <RefreshCw size={18} />
               </button>
@@ -178,6 +218,7 @@ export default function Home() {
         {(uiState === "idle" || uiState === "error") && (
           <div className="flex justify-center mb-10">
             <button
+              type="button"
               onClick={handleGenerate}
               className="flex items-center gap-2 bg-[#1A1A1A] text-white px-8 py-4 rounded-2xl font-bold text-base shadow-lg hover:bg-[#2d2d2d] active:scale-95 transition-all duration-200"
             >
@@ -188,49 +229,80 @@ export default function Home() {
 
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <Loader2 className="animate-spin text-[#5C8C6A]" size={44} />
-            <p className="text-gray-500 font-medium animate-pulse">
+            <Loader2 className="animate-spin text-[#4a7458]" size={44} aria-hidden="true" />
+            <p className="text-gray-600 font-medium animate-pulse">
               Analyse en cours…
             </p>
           </div>
         )}
 
         {uiState === "error" && (
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-5 mb-8">
+          <div role="alert" className="bg-red-50 border border-red-100 rounded-2xl p-5 mb-8">
             <p className="font-semibold text-red-700 mb-1">
               Une erreur est survenue
             </p>
-            <p className="text-red-500 text-sm">{errorMessage}</p>
+            <p className="text-red-700 text-sm">{errorMessage}</p>
+            {!notionContent && (
+              <button
+                type="button"
+                onClick={() => void loadPlanning()}
+                disabled={isPlanningFetching}
+                className="mt-3 inline-flex items-center gap-2 bg-red-700 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-red-800 active:scale-95 transition-all disabled:opacity-60"
+              >
+                <RefreshCw size={14} aria-hidden="true" />
+                {isPlanningFetching ? "Nouvelle tentative…" : "Réessayer"}
+              </button>
+            )}
           </div>
         )}
 
         {isEmpty && (
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 mb-8 flex flex-col items-center text-center gap-3">
-            <span className="text-4xl">📅</span>
+            <span className="text-4xl" aria-hidden="true">📅</span>
             <p className="font-semibold text-amber-800 text-base">
               Aucun repas planifié pour les 10 prochains jours
             </p>
-            <p className="text-amber-600 text-sm max-w-sm">
+            <p className="text-amber-800 text-sm max-w-sm">
               Votre planning Notion est vide pour cette période. Ajoutez des
               repas dans Notion pour pouvoir générer votre liste de courses.
             </p>
-            {process.env.NEXT_PUBLIC_NOTION_PAGE_URL && (
-              <a
-                href={process.env.NEXT_PUBLIC_NOTION_PAGE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-flex items-center gap-2 bg-amber-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber-800 active:scale-95 transition-all"
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => void loadPlanning()}
+                disabled={isPlanningFetching}
+                className="mt-1 inline-flex items-center gap-2 bg-amber-800 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber-900 active:scale-95 transition-all disabled:opacity-60"
               >
-                Ouvrir Notion
-              </a>
-            )}
+                <RefreshCw size={14} aria-hidden="true" />
+                {isPlanningFetching ? "Actualisation…" : "Actualiser"}
+              </button>
+              {process.env.NEXT_PUBLIC_NOTION_PAGE_URL && (
+                <a
+                  href={process.env.NEXT_PUBLIC_NOTION_PAGE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-2 bg-amber-800 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber-900 active:scale-95 transition-all"
+                >
+                  Ouvrir Notion
+                  <span className="sr-only">(nouvel onglet)</span>
+                </a>
+              )}
+            </div>
           </div>
         )}
 
-        {!isLoading && (
+        {isPlanningFetching && !notionContent && uiState === "idle" && (
+          <p className="text-sm text-gray-600 mb-8">Chargement du planning…</p>
+        )}
+
+        {isHydrated && !isLoading && (
           <div className="space-y-8">
             <NotionContent content={notionContent} recipes={recipes} />
-            <ShoppingList items={shoppingItems} />
+            <ShoppingList
+              key={generationId}
+              items={shoppingItems}
+              generationId={generationId}
+            />
           </div>
         )}
       </div>
